@@ -1105,8 +1105,12 @@ export function layoutParagraphBlock(ctx: ParagraphLayoutContext, anchors?: Para
 
         const paragraphRegions = availableRegions
           .map((region) => {
-            const left = Math.max(paragraphContentLeft, region.offsetX);
-            const right = Math.min(paragraphContentRight, region.offsetX + region.width);
+            // A full-column region adds no horizontal constraint to a negative indent.
+            const coversColumn = region.offsetX <= 0 && region.offsetX + region.width >= columnWidth;
+            const left = coversColumn ? paragraphContentLeft : Math.max(paragraphContentLeft, region.offsetX);
+            const right = coversColumn
+              ? paragraphContentRight
+              : Math.min(paragraphContentRight, region.offsetX + region.width);
             return { offsetX: left - paragraphContentLeft, width: right - left };
           })
           .filter((region) => region.width > 0);

@@ -608,6 +608,47 @@ describe('layoutParagraphBlock - remeasurement with list markers', () => {
       expect(fragment.lines).toBeUndefined();
     });
 
+    for (const { side, alignment, indent, expectedX, expectedWidth } of [
+      { side: 'left', alignment: 'center', indent: { left: -38 }, expectedX: 12, expectedWidth: 238 },
+      { side: 'right', alignment: 'right', indent: { right: -38 }, expectedX: 50, expectedWidth: 238 },
+      { side: 'both', alignment: 'center', indent: { left: -38, right: -38 }, expectedX: 12, expectedWidth: 276 },
+    ] as const) {
+      it(`keeps the paragraph's alignment box with a negative ${side} indent and no float`, () => {
+        const pageState = makePageState();
+        const block: ParagraphBlock = {
+          kind: 'paragraph',
+          id: `negative-${side}-indent`,
+          runs: [{ text: 'Aligned text', fontFamily: 'Arial', fontSize: 12 }],
+          attrs: { alignment, indent },
+        };
+        const remeasureParagraph = mock((_block, maxWidth, _firstLineIndent, lineRegions) => {
+          const next = makeMeasure([{ width: 80, lineHeight: 20, maxWidth }]);
+          next.lines[0]!.segments = [
+            { runIndex: 0, fromChar: 0, toChar: 12, width: 80, x: lineRegions?.[0]?.[0]?.offsetX },
+          ];
+          return next;
+        });
+
+        layoutParagraphBlock({
+          block,
+          measure: makeMeasure([{ width: 80, lineHeight: 20, maxWidth: expectedWidth }]),
+          columnWidth: 200,
+          ensurePage: mock(() => pageState),
+          advanceColumn: mock((state) => state),
+          columnX: mock(() => 50),
+          floatManager: makeFloatManager(),
+          remeasureParagraph,
+        });
+
+        const fragment = pageState.page.fragments[0];
+        expect(fragment?.kind).toBe('para');
+        if (fragment?.kind !== 'para') return;
+        expect(fragment.x).toBe(expectedX);
+        expect(fragment.width).toBe(expectedWidth);
+        expect(fragment.lines).toBeUndefined();
+      });
+    }
+
     it('splits a paragraph when a later line reaches a TopAndBottom exclusion', () => {
       const floatManager = makeFloatManager();
       floatManager.computeVerticalClearance = mock((lineY, lineHeight) =>
